@@ -4,7 +4,7 @@
       <div v-else>
         <div class="container mx-auto">
           <accordion
-            class="border-blue-300 mb-1 border"
+            class="mb-1"
             v-for="tagEdge in tags.edges[0].node.tags.edges"
             :key="tagEdge.node.id"
             :title="tagEdge.node.tagName"

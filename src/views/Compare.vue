@@ -75,23 +75,25 @@
     <!-- data display -->
     <div v-if="diffList" class="container mx-auto">
       <Accordion
-        class="border-blue-300 mb-1 border"
+        class="mb-1"
         v-for="(tagData, tagName, index) in diffList"
         :key="index"
         :title="tagName"
+        :changeStatus="tagData.changeStatus"
       >
         <Accordion
-          class="border-blue-300 mb-1 border"
-          v-for="(mentionData, mentionName, index) in tagData"
+          class="mb-1"
+          v-for="(mentionData, mentionName, index) in tagData.mentions"
           :key="index"
           :title="mentionName"
+          :changeStatus="mentionData.changeStatus"
         >
           <div
               class="text-left mb-3 p-3 border border-gray-500 border-dashed"
-              v-for="(excerpt, index) in mentionData"
+              v-for="(excerpt, index) in mentionData.excerpts"
               :key="index"
           >
-            <b v-for="(part, index) in excerpt" :key="index" class="font-normal" :class="{'text-green-600': part.added, 'text-red-600': part.removed}">{{part.value}}</b>
+            <b v-for="(part, index) in excerpt" :key="index" class="font-normal" :class="{'bg-green-200': part.added, 'bg-red-200': part.removed}">{{part.value}}</b>
           </div>
               <!-- v-html="asciidoctor.convert(excerpt)"  -->
         </Accordion>
@@ -155,14 +157,16 @@ export default {
       result ({ tags, loading, networkStatus }) {
         if (this.tags.edges.length > 1) {
           this.isSameVersion = false
-          this.tagData[0] = this.tags.edges[0].node.tags.edges
-          this.tagData[1] = this.tags.edges[1].node.tags.edges
+          this.tagData[0] = this.tags.edges[1].node.tags.edges
+          this.tagData[1] = this.tags.edges[0].node.tags.edges
           this.diffList = {}
+          this.wasChangedList = {}
           this.getDiff()
         } else {
           this.isSameVersion = true
           this.tagData = []
           this.diffList = {}
+          this.wasChangedList = {}
         }
       }
     },
@@ -199,32 +203,120 @@ export default {
     getDiff () {
       var tagDataParsed = this.parseTagData()
       var diff = {}
+      const shallowDiffInTags = this.getShallowDiffBetweenObjects(tagDataParsed[0], tagDataParsed[1])
+      var changeStatus = ''
+      // todo: dokonczyc diffy dla added i removed w tagach i mentionsach
 
-      for (const [tagKey, tagValue] of Object.entries(tagDataParsed[0])) {
-        if (tagKey in tagDataParsed[1]) {
-          const otherTagValue = tagDataParsed[1][tagKey]
-          var diffInMentions = {}
-          for (const [mentionKey, mentionValue] of Object.entries(tagValue)) {
-            if (mentionKey in otherTagValue) {
-              const otherMentionValue = otherTagValue[mentionKey]
-              const maxExcerpts = Math.max(
-                mentionValue.length,
-                otherMentionValue.length
-              )
-              const diffInExcerpts = []
-              for (var e = 0; e < maxExcerpts; e++) {
-                var excerpt1 = e >= mentionValue.length ? '' : mentionValue[e]
-                var excerpt2 =
-                  e >= otherMentionValue.length ? '' : otherMentionValue[e]
-                diffInExcerpts.push(this.diff.diffChars(excerpt1, excerpt2))
-              }
-              diffInMentions[mentionKey] = diffInExcerpts
-            }
-            // TODO: else
+      // Iterating over tags common for both versions
+      for (var tagName of shallowDiffInTags.common) {
+        var tagValue = tagDataParsed[0][tagName]
+        var otherTagValue = tagDataParsed[1][tagName]
+
+        var diffInMentions = {}
+        const shallowDiffInMentions = this.getShallowDiffBetweenObjects(tagValue, otherTagValue)
+
+        // Iterating over files common for both versions
+        for (var fileName of shallowDiffInMentions.common) {
+          var mentionValue = tagValue[fileName]
+          const otherMentionValue = otherTagValue[fileName]
+
+          var diffInExcerpts = []
+          changeStatus = 'unchanged'
+
+          const maxExcerpts = Math.max(
+            mentionValue.length,
+            otherMentionValue.length
+          )
+
+          for (var e = 0; e < maxExcerpts; e++) {
+            var excerpt1 = e >= mentionValue.length ? '' : mentionValue[e]
+            var excerpt2 = e >= otherMentionValue.length ? '' : otherMentionValue[e]
+            diffInExcerpts.push(this.diff.diffChars(excerpt1, excerpt2))
           }
-          diff[tagKey] = diffInMentions
+
+          if (diffInExcerpts.some(diffInExcerpt => diffInExcerpt.some(textDiff => textDiff.removed || textDiff.added))) {
+            changeStatus = 'changed'
+          }
+
+          diffInMentions[fileName] = { changeStatus: changeStatus, excerpts: diffInExcerpts }
+          if (fileName === 'Interfaces/IUniBusMale.adoc') {
+            console.log(diffInExcerpts)
+          }
         }
-        // TODO: else
+
+        // Iterating over Added files
+        for (fileName of shallowDiffInMentions.added) {
+          mentionValue = tagValue[fileName]
+
+          diffInExcerpts = []
+          changeStatus = 'added'
+
+          for (var excerpt of mentionValue) {
+            diffInExcerpts.push(this.diff.diffChars('', excerpt))
+          }
+
+          diffInMentions[fileName] = { changeStatus: changeStatus, excerpts: diffInExcerpts }
+        }
+
+        // Iterating over Removed files
+        for (fileName of shallowDiffInMentions.removed) {
+          mentionValue = otherTagValue[fileName]
+
+          diffInExcerpts = []
+          changeStatus = 'removed'
+
+          for (excerpt of mentionValue) {
+            diffInExcerpts.push(this.diff.diffChars(excerpt, ''))
+          }
+
+          diffInMentions[fileName] = { changeStatus: changeStatus, excerpts: diffInExcerpts }
+        }
+
+        if (Object.values(diffInMentions).some(diffInMention => diffInMention.changeStatus !== 'unchanged')) {
+          changeStatus = 'changed'
+        } else {
+          changeStatus = 'unchanged'
+        }
+
+        diff[tagName] = { changeStatus: changeStatus, mentions: diffInMentions }
+      }
+
+      // Iterating over Added tags
+      for (tagName of shallowDiffInTags.added) {
+        var addedMentions = tagDataParsed[0][tagName]
+        diffInMentions = {}
+
+        changeStatus = 'added'
+
+        for (const [addedFileName, addedExcerpts] of Object.entries(addedMentions)) {
+          diffInExcerpts = []
+          for (excerpt of addedExcerpts) {
+            diffInExcerpts.push(this.diff.diffChars('', excerpt))
+          }
+
+          diffInMentions[addedFileName] = { changeStatus: changeStatus, excerpts: diffInExcerpts }
+        }
+
+        diff[tagName] = { changeStatus: changeStatus, mentions: diffInMentions }
+      }
+
+      // Iterating over Removed tags
+      for (tagName of shallowDiffInTags.removed) {
+        var removedMentions = tagDataParsed[1][tagName]
+        diffInMentions = {}
+
+        changeStatus = 'removed'
+
+        for (const [removedFileName, removedExcerpts] of Object.entries(removedMentions)) {
+          diffInExcerpts = []
+          for (excerpt of removedExcerpts) {
+            diffInExcerpts.push(this.diff.diffChars(excerpt, ''))
+          }
+
+          diffInMentions[removedFileName] = { changeStatus: changeStatus, excerpts: diffInExcerpts }
+        }
+
+        diff[tagName] = { changeStatus: changeStatus, mentions: diffInMentions }
       }
       this.diffList = diff
     },
@@ -246,6 +338,22 @@ export default {
         tagDataParsed.push(tagData)
       }
       return tagDataParsed
+    },
+    getShallowDiffBetweenObjects (current, previous) {
+      var diffBetweenObjects = { added: [], removed: [], common: [] }
+      for (var key of Object.keys(current)) {
+        if (key in previous) {
+          diffBetweenObjects.common.push(key)
+        } else {
+          diffBetweenObjects.added.push(key)
+        }
+      }
+      for (key of Object.keys(previous)) {
+        if (!(key in current)) {
+          diffBetweenObjects.removed.push(key)
+        }
+      }
+      return diffBetweenObjects
     }
   }
 }
