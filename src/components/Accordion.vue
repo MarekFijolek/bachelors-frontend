@@ -9,8 +9,8 @@
         <!-- Title and change status (optional) -->
         <div class="flex block p-4 pt-2 pb-1 justify-between">
           <p
+            :class="changeStatus === null ? 'text-black' : (changeStatus === 'changed' ? 'text-orange-500' : (changeStatus === 'added' ? 'text-green-500' : (changeStatus === 'removed' ? 'text-red-500' : 'text-gray-500')))"
             class="font-medium"
-            :class="changeStatus === 'changed' ? 'text-orange-500' : (changeStatus === 'added' ? 'text-green-500' : (changeStatus === 'removed' ? 'text-red-500' : 'text-gray-500'))"
           >{{title}}</p>
           <span class="down-Arrow" v-show="!active">&#9660;</span>
           <span class="up-Arrow" v-show="active">&#9650;</span>
