@@ -45,15 +45,17 @@
       </div>
       <div class="bg-white flex items-center rounded-full shadow-xl mt-4 lg:mt-0">
         <input
+          v-model="searchText"
           class="rounded-l-full w-full py-2 lg:py-3 px-6 text-gray-900 leading-tight focus:outline-none"
           id="search"
           type="text"
           placeholder="Search"
         />
 
-        <div class="px-2 py-1 lg:py-0">
+        <router-link :to="{ name: 'Search', params: { searchText: searchText } }" class="px-2 py-1 lg:py-0">
           <button
             class="bg-blue-500 text-white rounded-full hover:bg-blue-400 focus:outline-none w-8 h-8 flex items-center justify-center"
+            @click="onClickSearchButton"
           >
             <svg
               class="text-white h-4 w-4 fill-current"
@@ -74,7 +76,7 @@
               />
             </svg>
           </button>
-        </div>
+        </router-link>
       </div>
     </div>
   </nav>
@@ -84,12 +86,16 @@
 export default {
   data: function () {
     return {
-      open: false
+      open: false,
+      searchText: ''
     }
   },
   methods: {
     toggle () {
       this.open = !this.open
+    },
+    onClickSearchButton () {
+      this.$emit('searched', this.searchText)
     }
   }
 }

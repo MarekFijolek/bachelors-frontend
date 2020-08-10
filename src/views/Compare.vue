@@ -68,9 +68,9 @@
           </select>
         </div>
       </div>
-    </div>
-    <div v-if="version1 !== '' && version2 !== '' && isSameVersion">
-      <p class="text-red-900 font-bold mt-10">Please choose two different versions</p>
+      <div v-if="version1 !== '' && version2 !== '' && isSameVersion">
+        <p class="text-red-900 font-bold mt-10">Please choose two different versions</p>
+      </div>
     </div>
     <!-- data display -->
     <div v-if="diffList" class="container mx-auto">
@@ -163,7 +163,7 @@ export default {
           this.wasChangedList = {}
           this.getDiff()
         } else {
-          this.isSameVersion = true
+          this.isSameVersion = this.tags.edges.length === 1 && this.version1 === this.version2
           this.tagData = []
           this.diffList = {}
           this.wasChangedList = {}
@@ -205,7 +205,6 @@ export default {
       var diff = {}
       const shallowDiffInTags = this.getShallowDiffBetweenObjects(tagDataParsed[0], tagDataParsed[1])
       var changeStatus = ''
-      // todo: dokonczyc diffy dla added i removed w tagach i mentionsach
 
       // Iterating over tags common for both versions
       for (var tagName of shallowDiffInTags.common) {
@@ -231,7 +230,7 @@ export default {
           for (var e = 0; e < maxExcerpts; e++) {
             var excerpt1 = e >= mentionValue.length ? '' : mentionValue[e]
             var excerpt2 = e >= otherMentionValue.length ? '' : otherMentionValue[e]
-            diffInExcerpts.push(this.diff.diffChars(excerpt1, excerpt2))
+            diffInExcerpts.push(this.diff.diffChars(excerpt2, excerpt1))
           }
 
           if (diffInExcerpts.some(diffInExcerpt => diffInExcerpt.some(textDiff => textDiff.removed || textDiff.added))) {
@@ -239,9 +238,6 @@ export default {
           }
 
           diffInMentions[fileName] = { changeStatus: changeStatus, excerpts: diffInExcerpts }
-          if (fileName === 'Interfaces/IUniBusMale.adoc') {
-            console.log(diffInExcerpts)
-          }
         }
 
         // Iterating over Added files

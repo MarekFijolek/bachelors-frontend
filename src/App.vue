@@ -1,7 +1,7 @@
 <template>
   <div id="app">
-    <Nav />
-    <router-view />
+    <Nav @searched="onClickSearch" />
+    <router-view :key="componentKey" />
   </div>
 </template>
 
@@ -10,6 +10,17 @@ import Nav from './components/Nav'
 export default {
   components: {
     Nav
+  },
+  data () {
+    return {
+      searchText: '',
+      componentKey: 0
+    }
+  },
+  methods: {
+    onClickSearch (searchText) {
+      this.$forceUpdate()
+    }
   }
 }
 </script>

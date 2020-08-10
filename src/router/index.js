@@ -3,6 +3,7 @@ import VueRouter from 'vue-router'
 import AllTags from '../views/AllTags.vue'
 import History from '../views/History.vue'
 import Compare from '../views/Compare.vue'
+import Search from '../views/Search.vue'
 
 Vue.use(VueRouter)
 
@@ -26,6 +27,12 @@ const routes = [
     path: '/compare',
     name: 'Compare',
     component: Compare
+  },
+  {
+    path: '/search',
+    name: 'Search',
+    component: Search,
+    props: true
   }
 ]
 
